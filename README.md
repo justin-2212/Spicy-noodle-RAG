@@ -1,105 +1,235 @@
-# README - RAG Food Recommendation Service
+# README - Spicy Noodle RAG Recommendation Service
 
-A course-project RAG (Retrieval-Augmented Generation) microservice for intelligent food recommendations.
+A course-project RAG (Retrieval-Augmented Generation) microservice for an AI-powered spicy noodle restaurant chatbot.
 
-## 🎯 What This Project Does
+---
 
-Builds an AI chatbot that:
-1. **Retrieves** relevant food items from restaurant database
-2. **Ranks** results by relevance
-3. **Generates** personalized recommendations using LLM
-4. **Streams** responses in real-time
+# 🎯 Project Overview
 
-Example: *"I'm vegetarian and want something under $15"* → Gets personalized menu suggestions.
+This project builds an intelligent AI chatbot for a spicy noodle restaurant system.
 
-## 🏗️ Architecture
+The chatbot can:
 
+1. Retrieve relevant menu items from the restaurant database
+2. Understand customer preferences and dietary needs
+3. Rank menu recommendations by relevance
+4. Generate personalized food suggestions using LLMs
+5. Stream responses in real-time
+
+Example queries:
+
+* “I want a non-spicy seafood noodle.”
+* “Recommend a spicy noodle under $10.”
+* “What is good for someone who cannot eat beef?”
+* “Suggest a vegetarian side dish.”
+
+---
+
+# 🏗️ System Architecture
+
+```text
+PostgreSQL (restaurant menu database)
+        ↓
+Ingestion Pipeline
+        ↓
+Qdrant Vector Database
+        ↓
+User Query
+        ↓
+Hybrid Retrieval (Dense + BM25)
+        ↓
+Reranking
+        ↓
+LLM Generation
+        ↓
+Streaming Chat Response
 ```
-PostgreSQL (menu data) 
-    ↓ [Ingestion Pipeline]
-Qdrant (vector index)
-    ↓
-User Query 
-    ↓ [Hybrid Retrieval + Reranking]
-Top-5 Relevant Items
-    ↓ [LLM Generation]
-Streaming Response
-```
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed design.
+The RAG service works as an independent AI microservice connected to:
 
-## 🚀 Quick Start (5 minutes)
+* frontend repository
+* backend repository
+* PostgreSQL database
 
-### 1. Setup
+For detailed architecture:
+See `docs/ARCHITECTURE.md`
+
+---
+
+# 🍜 Restaurant Context
+
+This chatbot is designed for a spicy noodle restaurant system.
+
+The menu database may include:
+
+* spicy noodle dishes
+* ramen
+* side dishes
+* beverages
+* toppings
+* combo meals
+
+Each menu item can contain:
+
+* name
+* description
+* price
+* spice level
+* ingredients
+* dietary tags
+* category
+* calories
+* availability
+
+The chatbot uses RAG to provide context-aware recommendations based on this restaurant data.
+
+---
+
+# 🚀 Quick Start
+
+## 1. Clone Repository
+
 ```bash
-# Clone repository
 git clone <repo-url>
 cd rag-chatbot-spicy-noodle
+```
 
-# Create virtual environment
+---
+
+## 2. Create Virtual Environment
+
+```bash
 python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
 
-# Install dependencies
+# Linux / macOS
+source .venv/bin/activate
+
+# Windows
+.venv\Scripts\activate
+```
+
+---
+
+## 3. Install Dependencies
+
+```bash
 pip install -r requirements.txt
 ```
 
-### 2. Configure
-```bash
-# Copy environment template
-cp .env.example .env
+---
 
-# Edit .env with your credentials:
-# - PostgreSQL connection string
-# - Qdrant host/port
-# - LLM API keys (Gemini or Groq)
+## 4. Configure Environment
+
+```bash
+cp .env.example .env
 ```
 
-### 3. Run Services
+Configure:
+
+* PostgreSQL connection
+* Qdrant configuration
+* Gemini API or Groq API key
+
+---
+
+## 5. Start Infrastructure Services
+
 ```bash
-# Start PostgreSQL and Qdrant
 docker-compose up -d
+```
 
-# Initialize vector database
+This starts:
+
+* PostgreSQL
+* Qdrant
+* Redis
+
+---
+
+## 6. Initialize Database
+
+```bash
 python scripts/init_db.py
+```
 
-# Load food data from PostgreSQL
+---
+
+## 7. Ingest Restaurant Data
+
+```bash
 python scripts/ingest.py
 ```
 
-### 4. Start API Server
+This step:
+
+* loads menu data from PostgreSQL
+* processes documents
+* creates embeddings
+* indexes vectors into Qdrant
+
+---
+
+## 8. Run API Server
+
 ```bash
 python -m uvicorn app.main:app --reload
-
-# API is now at http://localhost:8000
-# Docs at http://localhost:8000/docs
 ```
 
-### 5. Test It
+Server:
+
+* API: http://localhost:8000
+* Swagger Docs: http://localhost:8000/docs
+
+---
+
+# 🧪 Example API Usage
+
+## Chat Request
+
 ```bash
-# Chat endpoint
 curl -X POST http://localhost:8000/chat \
   -H "Content-Type: application/json" \
-  -d '{"query": "Vegetarian dishes under $15"}'
-
-# Health check
-curl http://localhost:8000/health
+  -d '{
+    "query": "Recommend a medium spicy beef noodle under $12",
+    "session_id": "user-001",
+    "stream": true
+  }'
 ```
 
-## 📁 Project Structure
+---
 
+## Example Response
+
+```text
+Based on your preferences, you may like:
+
+1. Spicy Beef Ramen
+- Medium spicy level
+- Tender sliced beef
+- Price: $10.99
+
+2. Kimchi Seafood Noodle
+- Mild-medium spicy
+- Includes shrimp and squid
+- Price: $11.50
 ```
+
+---
+
+# 📁 Project Structure
+
+```text
 app/
 ├── config/          # Configuration & constants
-├── utils/           # Logging, DB, exceptions
-├── ingestion/       # Data loading pipeline (batch)
-├── embeddings/      # Vector generation (BGE-M3)
-├── retrieval/       # Search engines (dense + sparse + hybrid)
-├── reranking/       # Result ranking (BGE-Reranker)
-├── llm/             # LLM providers (Gemini, Groq)
-├── memory/          # Conversation history
+├── utils/           # Logger, database, exceptions
+├── ingestion/       # Data ingestion pipeline
+├── embeddings/      # Embedding generation (BGE-M3)
+├── retrieval/       # Dense, sparse, hybrid retrieval
+├── reranking/       # Result reranking
+├── llm/             # Gemini/Groq integration
+├── memory/          # Conversation memory
 ├── prompts/         # Prompt templates
-├── citation/        # Source attribution
+├── citation/        # Citation generation
 └── api/             # FastAPI endpoints
 
 scripts/             # Utility scripts
@@ -107,135 +237,237 @@ tests/               # Test suite
 docs/                # Documentation
 ```
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed folder explanation.
+Detailed explanation:
+See `docs/ARCHITECTURE.md`
 
-## 📚 Documentation
+---
 
-- **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - System design & folder structure
-- **[DATA_FLOW.md](docs/DATA_FLOW.md)** - Data processing pipeline
-- **[API_REFERENCE.md](docs/API_REFERENCE.md)** - API endpoint documentation
-- **[SETUP.md](docs/SETUP.md)** - Detailed installation guide
+# 🔌 Main API Endpoints
 
-## 🔌 API Endpoints
+## POST /chat
 
-### POST /chat
-Main chat endpoint with RAG response.
+Main RAG chatbot endpoint.
 
-**Request:**
+### Request
+
 ```json
 {
-  "query": "Vegetarian dishes",
-  "session_id": "user-123",
+  "query": "Recommend a spicy seafood noodle",
+  "session_id": "user-001",
   "stream": true
 }
 ```
 
-**Response (streaming):**
-```
-event: token
-data: {"token": "Based"}
+### Features
 
-event: token
-data: {"token": " on"}
-
-event: complete
-data: {"citations": [...]}
-```
-
-### GET /health
-Health check endpoint.
-
-### POST /ingest
-Trigger data ingestion from PostgreSQL.
-
-See [docs/API_REFERENCE.md](docs/API_REFERENCE.md) for full API documentation.
-
-## 🛠️ Tech Stack
-
-| Component | Technology |
-|-----------|------------|
-| Framework | FastAPI |
-| Vector DB | Qdrant |
-| Source DB | PostgreSQL |
-| Embeddings | BAAI/bge-m3 |
-| Reranker | bge-reranker-base |
-| LLM Providers | Gemini API, Groq API |
-| Retrieval | Hybrid (Dense + BM25) |
-| Streaming | Server-Sent Events |
-
-## 🧪 Testing
-
-```bash
-# Run all tests
-pytest
-
-# Run specific test
-pytest tests/test_retrieval.py
-
-# Run with coverage
-pytest --cov=app
-```
-
-## 📊 Performance Metrics
-
-Typical performance on course-scale dataset:
-- **Query latency:** 200-500ms (including streaming)
-- **Embedding generation:** ~50ms
-- **Retrieval:** ~100ms (dense + sparse + fusion)
-- **Reranking:** ~50ms
-- **LLM generation:** ~500-2000ms (depends on LLM)
-
-## 🐳 Docker
-
-```bash
-# Build image
-docker build -t rag-service:latest .
-
-# Run container
-docker run -p 8000:8000 \
-  -e LLM_API_KEY=your-key \
-  -e DATABASE_URL=postgresql://... \
-  rag-service:latest
-```
-
-## 🤝 Contributing
-
-This is a course project. For improvements:
-1. Create a feature branch
-2. Make changes with tests
-3. Submit pull request
-
-## 📝 Notes
-
-- This is a **course-project simplified version**, not production-scale
-- Perfect for academic understanding and portfolio demonstration
-- Easily extensible for future features (agents, multimodal, etc.)
-
-## ❓ FAQ
-
-**Q: How do I add a new LLM provider?**  
-A: Create `app/llm/new_provider.py` inheriting from `BaseLLMProvider`. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-
-**Q: How do I change embedding model?**  
-A: Edit `app/config/constants.py` and `app/embeddings/embedding_service.py`.
-
-**Q: Can I use without Qdrant?**  
-A: You'd need to implement alternative in `app/retrieval/`. Currently requires Qdrant.
-
-**Q: How do I improve retrieval quality?**  
-A: Tune in `app/retrieval/hybrid_retriever.py` - adjust `top_k`, weights, fusion strategy.
-
-**Q: Does it support multi-turn conversations?**  
-A: Yes, via `app/memory/memory_manager.py` - stores conversation history.
-
-## 📄 License
-
-[Add your license]
-
-## 📧 Contact
-
-For questions about the project architecture, see documentation or contact course instructor.
+* Hybrid retrieval
+* Conversational memory
+* Reranking
+* Streaming response
+* Citation support
 
 ---
 
-**Ready to start?** Follow [SETUP.md](docs/SETUP.md) for detailed installation.
+## POST /ingest
+
+Triggers ingestion pipeline from PostgreSQL into Qdrant.
+
+---
+
+## GET /health
+
+Health check endpoint.
+
+---
+
+# 🛠️ Technology Stack
+
+| Component       | Technology            |
+| --------------- | --------------------- |
+| Framework       | FastAPI               |
+| Vector Database | Qdrant                |
+| Source Database | PostgreSQL            |
+| Embedding Model | BAAI/bge-m3           |
+| Reranker        | bge-reranker-base     |
+| Retrieval       | Hybrid Retrieval      |
+| ANN Search      | HNSW                  |
+| LLM Providers   | Gemini API / Groq API |
+| Streaming       | SSE                   |
+
+---
+
+# 🧠 Core AI Features
+
+## Hybrid Retrieval
+
+Combines:
+
+* dense semantic retrieval
+* BM25 keyword retrieval
+
+for better recommendation quality.
+
+---
+
+## ANN Search
+
+Uses HNSW indexing inside Qdrant for fast semantic search.
+
+---
+
+## Reranking
+
+Uses cross-encoder reranking to improve final retrieval relevance.
+
+---
+
+## Conversational Memory
+
+Supports multi-turn conversations with chat history tracking.
+
+---
+
+## Streaming Response
+
+Streams generated responses token-by-token using SSE.
+
+---
+
+# 🧪 Testing
+
+Run all tests:
+
+```bash
+pytest
+```
+
+Run specific test:
+
+```bash
+pytest tests/test_retrieval.py
+```
+
+Run coverage:
+
+```bash
+pytest --cov=app
+```
+
+---
+
+# 🐳 Docker
+
+Build image:
+
+```bash
+docker build -t spicy-noodle-rag .
+```
+
+Run container:
+
+```bash
+docker run -p 8000:8000 spicy-noodle-rag
+```
+
+---
+
+# 📊 Expected Workflow
+
+```text
+Restaurant Database
+        ↓
+Ingestion Pipeline
+        ↓
+Vector Indexing
+        ↓
+Customer Query
+        ↓
+Hybrid Retrieval
+        ↓
+Reranking
+        ↓
+Prompt Building
+        ↓
+LLM Generation
+        ↓
+Streaming Recommendation
+```
+
+---
+
+# 🎓 Educational Purpose
+
+This project is designed as a university AI engineering course project.
+
+Goals:
+
+* understand RAG architecture
+* learn vector search
+* build hybrid retrieval systems
+* integrate LLM APIs
+* design modular AI services
+* practice microservice architecture
+
+This is not intended to be a large-scale enterprise production system, but follows production-inspired engineering practices.
+
+---
+
+# 🚀 Future Extensions
+
+Possible future improvements:
+
+* multilingual support
+* image-based food search
+* multimodal RAG
+* agentic workflows
+* recommendation personalization
+* analytics dashboard
+* user preference learning
+
+---
+
+# ❓ FAQ
+
+## Can I change the LLM provider?
+
+Yes. Add a new provider inside:
+`app/llm/`
+
+---
+
+## Can I replace Qdrant?
+
+Yes, but retrieval modules must be updated.
+
+---
+
+## Does the chatbot support conversation history?
+
+Yes, via:
+`app/memory/memory_manager.py`
+
+---
+
+## Can I use another embedding model?
+
+Yes. Update:
+
+* `app/config/constants.py`
+* embedding service implementation
+
+---
+
+# 📄 License
+
+Add your preferred license.
+
+---
+
+# 📧 Contact
+
+For academic questions or project discussion, contact the project team or course instructor.
+
+---
+
+Ready to start?
+See `docs/SETUP.md` for full installation and development guide.
