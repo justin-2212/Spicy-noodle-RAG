@@ -1,4 +1,4 @@
-"""Indexer for RAG documents into Qdrant using REST API to bypass protobuf issues."""
+"""Indexer for RAG documents into Qdrant."""
 
 import httpx
 import uuid

@@ -1,3 +1,3 @@
-"""RAG Service for Food Recommendation Chatbot"""
+"""RAG Service for Spicy Noodle Food Chatbot"""
 
 __version__ = "0.1.0"

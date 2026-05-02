@@ -7,6 +7,7 @@ from langchain_community.embeddings import HuggingFaceBgeEmbeddings
 from langchain_core.runnables import RunnablePassthrough, RunnableParallel
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from sentence_transformers import CrossEncoder
 from app.config.settings import settings
 from app.utils.logger import logger
 
@@ -65,12 +66,37 @@ class LangChainRAGChain:
             encode_kwargs=encode_kwargs
         )
         
-        # Initialize Custom REST Retriever
-        self.base_retriever = QdrantRestRetriever(
+        # Initialize Dense Retriever
+        dense_retriever = QdrantRestRetriever(
             url=f"http://{settings.vector_store.host}:{settings.vector_store.port}",
             collection_name=settings.vector_store.collection_name,
             embeddings=self.embeddings,
             k=settings.retrieval.dense_top_k
+        )
+        
+        # Initialize Sparse Retriever and Ensemble
+        bm25_docs = self._fetch_all_documents_for_bm25()
+        if bm25_docs:
+            from langchain_community.retrievers import BM25Retriever
+            from langchain.retrievers import EnsembleRetriever
+            sparse_retriever = BM25Retriever.from_documents(bm25_docs)
+            sparse_retriever.k = settings.retrieval.sparse_top_k
+            
+            # Combine them using EnsembleRetriever for RRF
+            self.base_retriever = EnsembleRetriever(
+                retrievers=[dense_retriever, sparse_retriever],
+                weights=[settings.retrieval.dense_weight, settings.retrieval.sparse_weight]
+            )
+            logger.info("Initialized Hybrid Search with EnsembleRetriever (RRF)")
+        else:
+            self.base_retriever = dense_retriever
+            logger.warning("BM25 docs not found, falling back to dense retriever only.")
+        
+        # Initialize Reranker
+        logger.info(f"Loading reranker model: {settings.reranker.model_name}")
+        self.reranker = CrossEncoder(
+            settings.reranker.model_name,
+            device=settings.reranker.device
         )
         
         # Setup Reranker (Manual LLM Reranking logic or Compressor)
@@ -112,9 +138,45 @@ class LangChainRAGChain:
         def format_docs(docs):
             return "\n\n".join(doc.page_content for doc in docs)
             
+        def rerank_docs(inputs):
+            query = inputs["query"]
+            docs = inputs["docs"]
+            if not docs:
+                return []
+            
+            # Prepare pairs for reranking
+            pairs = [[query, doc.page_content] for doc in docs]
+            scores = self.reranker.predict(pairs)
+            
+            # Add scores to metadata and sort
+            for doc, score in zip(docs, scores):
+                doc.metadata["rerank_score"] = float(score)
+            
+            sorted_docs = sorted(docs, key=lambda x: x.metadata["rerank_score"], reverse=True)
+            
+            # Log top scores for debugging
+            if sorted_docs:
+                logger.info(f"Top rerank score: {sorted_docs[0].metadata['rerank_score']:.4f}")
+                
+            return sorted_docs[:settings.retrieval.rerank_top_k]
+
+        def limit_hybrid_docs(docs):
+            if not docs:
+                return []
+            # Log hybrid top scores for debugging
+            logger.info(f"Retrieved {len(docs)} documents after hybrid fusion. Limiting to {settings.retrieval.hybrid_top_k}.")
+            return docs[:settings.retrieval.hybrid_top_k]
+
         self.rag_chain = (
             RunnableParallel({
-                "context": (lambda x: x["input"]) | self.base_retriever | format_docs,
+                "context": (
+                    RunnableParallel({
+                        "query": lambda x: x["input"],
+                        "docs": (lambda x: x["input"]) | self.base_retriever | limit_hybrid_docs
+                    })
+                    | rerank_docs
+                    | format_docs
+                ),
                 "input": lambda x: x["input"],
                 "chat_history": lambda x: x["chat_history"]
             })
@@ -163,3 +225,28 @@ class LangChainRAGChain:
             "chat_history": chat_history
         }):
             yield chunk
+
+    def _fetch_all_documents_for_bm25(self) -> List[Document]:
+        """Fetch all documents from Qdrant to initialize BM25Retriever."""
+        docs = []
+        try:
+            with httpx.Client() as client:
+                response = client.post(
+                    f"http://{settings.vector_store.host}:{settings.vector_store.port}/collections/{settings.vector_store.collection_name}/points/scroll",
+                    json={"limit": 1000, "with_payload": True, "with_vector": False},
+                    timeout=30.0
+                )
+                if response.status_code == 200:
+                    results = response.json().get("result", {}).get("points", [])
+                    for res in results:
+                        payload = res.get("payload", {})
+                        # Qdrant Indexer uses 'text' field for chunked text
+                        content = payload.get("text", "")
+                        if content:
+                            docs.append(Document(page_content=content, metadata=payload))
+            logger.info(f"Fetched {len(docs)} documents for BM25 Retriever")
+        except Exception as e:
+            logger.error(f"Failed to fetch documents for BM25: {e}")
+            
+        return docs
+

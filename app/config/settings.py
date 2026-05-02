@@ -42,7 +42,7 @@ class RerankerSettings(BaseSettings):
     
     model_config = ConfigDict(env_prefix="RERANKER_")
     
-    model_name: str = "BAAI/bge-reranker-base"
+    model_name: str = "BAAI/bge-reranker-v2-m3"
     device: str = "cpu"
     batch_size: int = 64
     cache_dir: str = "./models/reranker"
