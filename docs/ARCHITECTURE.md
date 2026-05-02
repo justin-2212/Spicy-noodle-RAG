@@ -21,156 +21,48 @@ rag-chatbot-spicy-noodle/
 │   ├── docker-compose.yml        # Local development setup
 │   └── .gitignore                # Git ignore rules
 │
-├── 📁 app/ (Main Application - 950 lines total)
+├── 📁 app/ (Main Application)
 │   │
-│   ├── main.py                   # FastAPI app entry point (70 lines)
+│   ├── main.py                   # FastAPI app entry point
 │   │   • Create FastAPI app instance
 │   │   • Mount routers
 │   │   • Configure CORS, middleware
-│   │   • Health check endpoint
 │   │
 │   ├── config/
-│   │   ├── settings.py           # Pydantic BaseSettings (100 lines)
+│   │   ├── settings.py           # Pydantic BaseSettings
 │   │   │   • Load environment variables
 │   │   │   • Database URL, API keys, ports
-│   │   │   • Model paths and hyperparameters
 │   │   │
-│   │   └── constants.py          # App constants (50 lines)
-│   │       • Collection names (Qdrant)
-│   │       • Default hyperparameters
-│   │       • Model identifiers
+│   │   └── constants.py          # App constants
 │   │
 │   ├── utils/
-│   │   ├── logger.py             # Logging setup (40 lines)
-│   │   │   • Structured logging configuration
-│   │   │
-│   │   ├── db.py                 # Database utilities (80 lines)
-│   │   │   • PostgreSQL connection pool
-│   │   │   • Query helpers
-│   │   │
-│   │   └── exceptions.py         # Custom exceptions (50 lines)
-│   │       • RAGException base class
-│   │       • RetrievalError, EmbeddingError, etc.
+│   │   ├── logger.py             # Logging setup
+│   │   └── db.py                 # Database utilities (PostgreSQL)
 │   │
-│   ├── ingestion/ (BATCH PIPELINE - Runs once/scheduled)
-│   │   ├── extractor.py          # Extract from PostgreSQL (80 lines)
-│   │   │   • Query food items from backend DB
-│   │   │   • Format documents (name, description, price, etc.)
-│   │   │   • Handle chunking metadata
-│   │   │
-│   │   ├── processor.py          # Document processing (80 lines)
-│   │   │   • Clean text (lowercase, whitespace)
-│   │   │   • Normalize descriptions
-│   │   │   • Validate data quality
-│   │   │
-│   │   ├── chunker.py            # Split into chunks (60 lines)
-│   │   │   • Chunk long descriptions
-│   │   │   • Preserve metadata (item_id, category)
-│   │   │   • Overlapping chunks for better coverage
-│   │   │
-│   │   ├── indexer.py            # Index to Qdrant (100 lines)
-│   │   │   • Create collections if needed
-│   │   │   • Upload vectors + metadata
-│   │   │   • Handle updates/deletes
-│   │   │
-│   │   └── pipeline.py           # Orchestrate ingestion (80 lines)
-│   │       • Main ingestion flow
-│   │       • Error handling & logging
-│   │       • Progress tracking
+│   ├── ingestion/ (BATCH PIPELINE)
+│   │   ├── extractor.py          # Extract from PostgreSQL
+│   │   ├── processor.py          # Document processing
+│   │   ├── chunker.py            # Split into chunks
+│   │   ├── indexer.py            # Index to Qdrant
+│   │   └── pipeline.py           # Orchestrate ingestion
 │   │
-│   ├── embeddings/ (VECTORIZATION)
-│   │   └── embedding_service.py  # BGE-M3 wrapper (100 lines)
-│   │       • Load/cache BGE-M3 model
-│   │       • Generate vectors for text
-│   │       • Batch processing support
-│   │       • GPU/CPU device handling
-│   │
-│   ├── retrieval/ (RUNTIME - Query processing)
-│   │   ├── dense_retriever.py    # HNSW search (80 lines)
-│   │   │   • Query vector embedding
-│   │   │   • Search Qdrant collection
-│   │   │   • Return top-k results
-│   │   │
-│   │   ├── sparse_retriever.py   # BM25 search (100 lines)
-│   │   │   • Keyword/BM25 matching
-│   │   │   • Query term weighting
-│   │   │   • Return ranked results
-│   │   │
-│   │   ├── hybrid_retriever.py   # Hybrid orchestrator (100 lines)
-│   │   │   • Call both retrievers
-│   │   │   • Fuse rankings (RRF)
-│   │   │   • Combine scores
-│   │   │   • Return top-k fused results
-│   │   │
-│   │   └── fusion.py             # Ranking fusion (50 lines)
-│   │       • Reciprocal Rank Fusion (RRF)
-│   │       • Weighted score combination
-│   │
-│   ├── reranking/
-│   │   └── reranker.py           # BGE-Reranker wrapper (80 lines)
-│   │       • Load reranker model
-│   │       • Re-score documents
-│   │       • Return top-k reranked
+│   ├── retrieval/ (RUNTIME)
+│   │   └── langchain_rag_chain.py # Core RAG Logic (LangChain)
 │   │
 │   ├── llm/
-│   │   ├── base.py               # Abstract LLM interface (40 lines)
-│   │   │   • BaseProvider class
-│   │   │   • generate() method
-│   │   │   • stream() method
-│   │   │
-│   │   ├── gemini_provider.py    # Google Gemini (80 lines)
-│   │   │   • API client setup
-│   │   │   • Request formatting
-│   │   │   • Response handling & streaming
-│   │   │
-│   │   ├── groq_provider.py      # Groq API (80 lines)
-│   │   │   • API client setup
-│   │   │   • Request formatting
-│   │   │   • Response handling & streaming
-│   │   │
-│   │   └── streaming.py          # SSE helpers (60 lines)
-│   │       • Format streaming responses
-│   │       • Token event generation
+│   │   └── langchain_provider.py  # LLM Factory (Gemini/Groq)
 │   │
 │   ├── memory/
-│   │   └── memory_manager.py     # Conversation memory (100 lines)
-│   │       • Store/retrieve chat history
-│   │       • Session management
-│   │       • In-memory storage (file backup optional)
-│   │
-│   ├── prompts/
-│   │   ├── templates.py          # Prompt definitions (80 lines)
-│   │   │   • System prompt
-│   │   │   • RAG prompt with context
-│   │   │   • Query rewriting prompt
-│   │   │
-│   │   └── builder.py            # Build prompts (60 lines)
-│   │       • Insert retrieved docs
-│   │       • Format conversation history
-│   │       • Build final prompt
-│   │
-│   ├── citation/
-│   │   └── citation_manager.py   # Extract sources (70 lines)
-│   │       • Extract source references from response
-│   │       • Map to original documents
-│   │       • Format citations
+│   │   └── langchain_memory.py    # Conversation memory
 │   │
 │   └── api/
-│       ├── routes.py             # All API endpoints (120 lines)
-│       │   • POST /chat - Main chat endpoint
-│       │   • GET /health - Health check
-│       │   • POST /ingest - Trigger ingestion
-│       │   • GET /status - Service status
-│       │
-│       └── models.py             # Request/Response schemas (80 lines)
-│           • ChatRequest, ChatResponse
-│           • IngestionRequest, StatusResponse
-│           • Pydantic validation
+│       ├── chat.py               # Chat API endpoint
+│       └── models.py             # Request/Response schemas
 │
 ├── 📁 scripts/ (Standalone utilities)
-│   ├── ingest.py                 # Run ingestion manually (40 lines)
-│   ├── eval.py                   # Evaluation utilities (50 lines)
-│   └── init_db.py                # Initialize Qdrant (30 lines)
+│   ├── ingest.py                 # Run ingestion manually
+│   ├── eval.py                   # Evaluation utilities
+│   └── init_db.py                # Initialize Qdrant
 │
 ├── 📁 tests/
 │   ├── test_retrieval.py         # Retrieval tests
@@ -189,20 +81,18 @@ rag-chatbot-spicy-noodle/
 
 ## 🔄 Data Flow
 
-### Ingestion Flow (Batch - Once on startup)
+### Ingestion Flow (Batch)
 
 ```
 PostgreSQL (food items)
       ↓
-[extractor.py] - Query items, format docs
+[extractor.py] - Query items
       ↓
-[processor.py] - Clean, normalize text
+[processor.py] - Clean text
       ↓
-[chunker.py] - Split into chunks (preserve item metadata)
+[chunker.py] - Split into chunks
       ↓
-[embedding_service.py] - Generate embeddings (BGE-M3)
-      ↓
-[indexer.py] - Upload to Qdrant with metadata
+[indexer.py] - Upload to Qdrant (using LangChain BGE Embeddings)
       ↓
 Qdrant (vector index ready)
 ```
@@ -210,34 +100,18 @@ Qdrant (vector index ready)
 ### Runtime Flow (Per-Query)
 
 ```
-User Query (e.g., "Vegetarian dishes under $15")
+User Query
       ↓
-[routes.py] POST /chat endpoint receives request
+[api/chat.py] POST /chat endpoint receives request
       ↓
-[memory_manager.py] - Retrieve conversation history
+[retrieval/langchain_rag_chain.py] - Core Orchestration:
+    ├─ [rewrite_chain] - Formulate standalone question
+    ├─ [QdrantRestRetriever] - Search Qdrant
+    └─ [qa_chain] - Generate answer with context
       ↓
-[prompts/builder.py] - Build query prompt with history
+[llm/langchain_provider.py] - Call LLM (Gemini/Groq)
       ↓
-[embedding_service.py] - Embed query
-      ↓
-[retrieval/] - Hybrid retrieval:
-    ├─ [dense_retriever.py] - HNSW search → top-20
-    ├─ [sparse_retriever.py] - BM25 search → top-20
-    └─ [hybrid_retriever.py] - Fuse results → top-10
-      ↓
-[reranking/reranker.py] - Re-rank with BGE-Reranker → top-5
-      ↓
-[prompts/builder.py] - Build final prompt with context
-      ↓
-[llm/] - Call LLM (Gemini/Groq) with streaming
-      ↓
-[streaming.py] - SSE stream tokens to client
-      ↓
-[citation_manager.py] - Extract references
-      ↓
-[memory_manager.py] - Save conversation
-      ↓
-Streamed response to frontend
+JSON response to frontend
 ```
 
 ---
@@ -245,72 +119,31 @@ Streamed response to frontend
 ## 🏗️ Key Architectural Decisions
 
 ### 1. **Separated Ingestion & Runtime**
-- **Ingestion** runs once at startup or on-demand (batch processing)
-- **Runtime** handles queries (online, latency-optimized)
-- Different concerns = separate modules
+- **Ingestion** runs once to populate the vector store.
+- **Runtime** handles live user queries.
 
-**Why:** Ingestion can be slow and thorough. Runtime needs to be fast. Different optimization strategies.
+### 2. **LangChain Centric Design**
+The system uses LangChain for:
+- RAG chain orchestration (`LangChainRAGChain`)
+- Vector store interactions
+- LLM provider management with fallback support
 
-### 2. **Minimal Module Count**
-Unlike enterprise patterns, this keeps modules focused and discoverable:
-- 11 core modules (not 40+)
-- ~1500-2000 total lines of code
-- Perfect for understanding in 1-2 semesters
-
-### 3. **Clear Retrieval Pipeline**
-Three separate retrievers that can be studied/optimized independently:
-- **Dense:** Fast vector search (understand HNSW)
-- **Sparse:** BM25 ranking (understand text search)
-- **Hybrid:** Learn ranking fusion strategies
-
-### 4. **Provider Abstraction**
-LLM providers follow a simple interface:
-```python
-# app/llm/base.py
-class BaseLLMProvider:
-    async def generate(query, context) -> str
-    async def stream(query, context) -> AsyncGenerator
-```
-
-Easy to:
-- Add Anthropic, Ollama, etc.
-- Switch providers at runtime
-- Test with mocks
-
-### 5. **Embedding & Reranking as Services**
-Rather than scattering model calls, they're isolated:
-- `embedding_service.py` - All BGE-M3 logic
-- `reranking/reranker.py` - All reranker logic
-
-Easy to:
-- Swap models (try different embeddings)
-- Optimize (batching, caching, GPU)
-- Monitor (measure latency)
-
-### 6. **Prompts as Data**
-Prompts stored in `prompts/templates.py`, not hardcoded:
-- Easy to experiment with prompt engineering
-- Version control prompts
-- Separate business logic from prompts
+### 3. **Modular Providers**
+LLM and Memory logic are encapsulated in specific providers, making it easy to swap implementations or add new features without affecting the core API.
 
 ---
 
 ## 📊 Module Responsibilities
 
-| Module | Responsibility | Key Files | ~Lines |
-|--------|---|---|---|
-| **config** | Environment & settings | settings.py, constants.py | 150 |
-| **utils** | Logging, DB, exceptions | logger.py, db.py, exceptions.py | 170 |
-| **ingestion** | Data pipeline (batch) | extractor, processor, chunker, indexer, pipeline | 400 |
-| **embeddings** | Vector generation | embedding_service.py | 100 |
-| **retrieval** | Query search | dense, sparse, hybrid, fusion | 330 |
-| **reranking** | Result ranking | reranker.py | 80 |
-| **llm** | Language model calls | base.py, gemini, groq, streaming | 300 |
-| **memory** | Chat history | memory_manager.py | 100 |
-| **prompts** | Prompt templates | templates.py, builder.py | 140 |
-| **citation** | Source attribution | citation_manager.py | 70 |
-| **api** | REST endpoints | routes.py, models.py | 200 |
-| | **TOTAL** | | **~1900** |
+| Module | Responsibility | Key Files |
+|--------|---|---|
+| **config** | Environment & settings | settings.py |
+| **utils** | Logging, DB | logger.py, db.py |
+| **ingestion** | Data pipeline (batch) | extractor, processor, chunker, indexer, pipeline |
+| **retrieval** | Core RAG logic | langchain_rag_chain.py |
+| **llm** | Language model calls | langchain_provider.py |
+| **memory** | Chat history | langchain_memory.py |
+| **api** | REST endpoints | chat.py, models.py |
 
 ---
 

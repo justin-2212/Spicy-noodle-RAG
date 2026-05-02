@@ -53,7 +53,7 @@ class LLMSettings(BaseSettings):
     
     model_config = ConfigDict(env_prefix="LLM_", env_file=".env", extra="ignore")
     
-    provider: str = "gemini"  # "gemini" or "groq"
+    provider: str = "groq"  # "gemini" or "groq"
     use_fallback: bool = True
     
     gemini_api_key: Optional[str] = None
@@ -83,10 +83,10 @@ class Settings(BaseSettings):
     """Main application settings."""
     
     # API
-    app_name: str = "RAG Food Service"
+    app_name: str = "RAG Spicy Noodle Service"
     app_version: str = "0.1.0"
-    api_title: str = "RAG Food Recommendation API"
-    api_description: str = "Intelligent food recommendation service"
+    api_title: str = "RAG Spicy Noodle Recommendation API"
+    api_description: str = "Intelligent spicy noodle recommendation service"
     fastapi_debug: bool = False
     
     # Port
