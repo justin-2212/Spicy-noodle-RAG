@@ -1,72 +1,75 @@
 """Application settings and configuration."""
 
 from typing import Optional
+from pydantic import ConfigDict
 from pydantic_settings import BaseSettings
 
 
 class DatabaseSettings(BaseSettings):
     """PostgreSQL database configuration."""
     
-    url: str = "postgresql://user:password@localhost:5432/food_db"
+    model_config = ConfigDict(env_prefix="DB_", env_file=".env", extra="ignore")
+    
+    url: str = "postgresql://postgres:justinthang2005@localhost:5432/mi-cay"
     echo: bool = False
     pool_size: int = 10
-    
-    class Config:
-        env_prefix = "DB_"
 
 
 class VectorStoreSettings(BaseSettings):
     """Qdrant vector store configuration."""
     
+    model_config = ConfigDict(env_prefix="QDRANT_", env_file=".env", extra="ignore")
+    
     host: str = "localhost"
     port: int = 6333
-    collection_name: str = "food_items"
+    collection_name: str = "products"
     vector_size: int = 1024  # BGE-M3 dimension
-    
-    class Config:
-        env_prefix = "QDRANT_"
 
 
 class EmbeddingSettings(BaseSettings):
     """Embedding model configuration."""
     
+    model_config = ConfigDict(env_prefix="EMBEDDING_", env_file=".env", extra="ignore")
+    
     model_name: str = "BAAI/bge-m3"
-    device: str = "cuda"  # or "cpu"
+    device: str = "cpu"  # or "cuda"
     batch_size: int = 32
     cache_dir: str = "./models/embeddings"
-    
-    class Config:
-        env_prefix = "EMBEDDING_"
 
 
 class RerankerSettings(BaseSettings):
     """Reranker model configuration."""
     
+    model_config = ConfigDict(env_prefix="RERANKER_")
+    
     model_name: str = "BAAI/bge-reranker-base"
-    device: str = "cuda"
+    device: str = "cpu"
     batch_size: int = 64
     cache_dir: str = "./models/reranker"
-    
-    class Config:
-        env_prefix = "RERANKER_"
 
 
 class LLMSettings(BaseSettings):
     """Language model configuration."""
     
+    model_config = ConfigDict(env_prefix="LLM_", env_file=".env", extra="ignore")
+    
     provider: str = "gemini"  # "gemini" or "groq"
+    use_fallback: bool = True
+    
     gemini_api_key: Optional[str] = None
+    gemini_model_name: str = "gemini-2.5-flash"
+    
     groq_api_key: Optional[str] = None
-    model_name: str = "gemini-pro"  # or "mixtral-8x7b-32768"
+    groq_model_name: str = "llama-3.3-70b-versatile"
+    
     temperature: float = 0.7
     max_tokens: int = 1024
-    
-    class Config:
-        env_prefix = "LLM_"
 
 
 class RetrievalSettings(BaseSettings):
     """Retrieval configuration."""
+    
+    model_config = ConfigDict(env_prefix="RETRIEVAL_")
     
     dense_top_k: int = 20
     sparse_top_k: int = 20
@@ -74,9 +77,6 @@ class RetrievalSettings(BaseSettings):
     rerank_top_k: int = 5
     dense_weight: float = 0.6
     sparse_weight: float = 0.4
-    
-    class Config:
-        env_prefix = "RETRIEVAL_"
 
 
 class Settings(BaseSettings):
@@ -87,11 +87,11 @@ class Settings(BaseSettings):
     app_version: str = "0.1.0"
     api_title: str = "RAG Food Recommendation API"
     api_description: str = "Intelligent food recommendation service"
-    debug: bool = False
+    fastapi_debug: bool = False
     
     # Port
-    port: int = 8000
-    host: str = "0.0.0.0"
+    fastapi_port: int = 8000
+    fastapi_host: str = "0.0.0.0"
     
     # Logging
     log_level: str = "INFO"
@@ -105,9 +105,11 @@ class Settings(BaseSettings):
     llm: LLMSettings = LLMSettings()
     retrieval: RetrievalSettings = RetrievalSettings()
     
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
+    model_config = ConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore"
+    )
 
 
 # Global settings instance

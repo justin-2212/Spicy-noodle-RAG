@@ -1,40 +1,21 @@
-"""FastAPI application entry point."""
+import os
+os.environ['PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION'] = 'python'
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
-
-from app.config.settings import settings
+from app.api.chat import router as chat_router
 from app.utils.logger import logger
-from app.utils.db import db_pool
-from app.api.routes import router as api_router
 
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Application lifespan events."""
-    # Startup
-    logger.info("Starting RAG service...")
-    await db_pool.init()
-    logger.info("Service started")
-    
-    yield
-    
-    # Shutdown
-    logger.info("Shutting down RAG service...")
-    await db_pool.close()
-    logger.info("Service stopped")
-
-
-# Create FastAPI app
+# Set up FastAPI app
 app = FastAPI(
-    title=settings.api_title,
-    description=settings.api_description,
-    version=settings.app_version,
-    lifespan=lifespan
+    title="Spicy Noodle RAG Chatbot",
+    description="Intelligent assistant for Spicy Noodle Restaurant",
+    version="1.0.0"
 )
 
-# CORS middleware
+# Configure CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -44,24 +25,27 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(api_router, prefix="/api", tags=["chat"])
+app.include_router(chat_router, prefix="/api")
 
+# Mount static files
+static_path = os.path.join(os.path.dirname(__file__), "static")
+if not os.path.exists(static_path):
+    os.makedirs(static_path)
+app.mount("/static", StaticFiles(directory=static_path), name="static")
 
-@app.get("/")
-async def root():
-    """Root endpoint."""
-    return {
-        "message": "RAG Food Recommendation Service",
-        "version": settings.app_version,
-        "docs": "/docs"
-    }
+@app.get("/", response_class=HTMLResponse)
+async def read_root():
+    """Serve the chat interface."""
+    index_file = os.path.join(static_path, "index.html")
+    if os.path.exists(index_file):
+        with open(index_file, "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    return HTMLResponse(content="<h1>Chatbot UI coming soon...</h1>")
 
+@app.on_event("startup")
+async def startup_event():
+    logger.info("Chatbot API is starting up...")
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(
-        "app.main:app",
-        host=settings.host,
-        port=settings.port,
-        reload=settings.debug
-    )
+@app.on_event("shutdown")
+async def shutdown_event():
+    logger.info("Chatbot API is shutting down...")
