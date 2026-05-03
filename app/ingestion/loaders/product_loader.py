@@ -176,11 +176,9 @@ class ProductLoader:
             )
         
         # Load combo components
-        combo_components = []
-        if product.is_combo:
-            combo_components = await ComboLoader.load_by_combo_id(
-                session, product.products_id
-            )
+        combo_components = await ComboLoader.load_by_combo_id(
+            session, product.products_id
+        )
         
         # Build product data
         product_data = {

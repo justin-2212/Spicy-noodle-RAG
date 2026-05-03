@@ -63,16 +63,17 @@ class ProductDocumentBuilder:
             if product_data['is_best_seller']:
                 lines.append("Sản phẩm bán chạy")
 
-            # Combo
-            if product_data['is_combo']:
-                lines.append("Sản phẩm combo")
-                if product_data.get('combo_components'):
-                    comp_lines = [
-                        f"  + {comp['name']} (x{comp['quantity']})"
-                        for comp in product_data['combo_components']
-                    ]
-                    lines.append("Thành phần combo:")
-                    lines.extend(comp_lines)
+            # Combo components
+            if product_data.get('combo_components'):
+                if product_data.get('is_combo'):
+                    lines.append("Sản phẩm combo:")
+                else:
+                    lines.append("Thành phần của món:")
+                comp_lines = [
+                    f"  + {comp['name']} (x{comp['quantity']})"
+                    for comp in product_data['combo_components']
+                ]
+                lines.extend(comp_lines)
 
             # Rating
             if product_data['average_rating']:

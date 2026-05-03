@@ -36,11 +36,8 @@ class ReviewLoader:
                 {
                     'id': review.product_reviews_id,
                     'product_id': review.products_id,
-                    'user_id': review.users_id,
                     'rating': review.rating,
                     'comment': review.comment,
-                    'created_at': review.created_at,
-                    'is_approved': review.is_approved,
                 }
                 for review in reviews
             ]
@@ -81,7 +78,6 @@ class ReviewLoader:
                     'id': review.product_reviews_id,
                     'rating': review.rating,
                     'comment': review.comment,
-                    'created_at': review.created_at,
                 }
                 for review in reviews
             ]

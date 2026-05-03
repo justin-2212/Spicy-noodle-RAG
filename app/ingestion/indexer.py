@@ -64,9 +64,12 @@ class QdrantIndexer:
                 for doc in documents:
                     chunks = text_splitter.split_text(doc["text"])
                     for i, chunk in enumerate(chunks):
+                        product_name = doc.get("metadata", {}).get("product_name", "")
+                        chunk_text = f"Món: {product_name}\n{chunk}" if product_name else chunk
+                        
                         chunked_docs.append({
                             "id": doc.get("id"),
-                            "text": chunk,
+                            "text": chunk_text,
                             "metadata": {
                                 **doc.get("metadata", {}),
                                 "chunk_id": i,

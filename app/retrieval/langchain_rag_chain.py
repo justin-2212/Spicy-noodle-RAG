@@ -3,7 +3,7 @@ from typing import List, AsyncGenerator, Any, Dict, Optional
 from langchain_core.documents import Document
 from langchain_core.retrievers import BaseRetriever
 from langchain_core.callbacks import CallbackManagerForRetrieverRun
-from langchain_community.embeddings import HuggingFaceBgeEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_core.runnables import RunnablePassthrough, RunnableParallel
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -58,9 +58,8 @@ class LangChainRAGChain:
         model_kwargs = {'device': settings.embedding.device}
         encode_kwargs = {'normalize_embeddings': True}
         
-        # We use BGE M3 or standard sentence transformers
-        # BAAI/bge-m3 is heavy, might take time to download.
-        self.embeddings = HuggingFaceBgeEmbeddings(
+        # Using HuggingFaceEmbeddings from langchain_huggingface (replacement for HuggingFaceBgeEmbeddings)
+        self.embeddings = HuggingFaceEmbeddings(
             model_name=settings.embedding.model_name,
             model_kwargs=model_kwargs,
             encode_kwargs=encode_kwargs
@@ -78,14 +77,18 @@ class LangChainRAGChain:
         bm25_docs = self._fetch_all_documents_for_bm25()
         if bm25_docs:
             from langchain_community.retrievers import BM25Retriever
-            from langchain.retrievers import EnsembleRetriever
+            # In this environment, EnsembleRetriever is in langchain_classic.retrievers
+            try:
+                from langchain.retrievers import EnsembleRetriever
+            except ImportError:
+                from langchain_classic.retrievers import EnsembleRetriever
             sparse_retriever = BM25Retriever.from_documents(bm25_docs)
             sparse_retriever.k = settings.retrieval.sparse_top_k
             
             # Combine them using EnsembleRetriever for RRF
             self.base_retriever = EnsembleRetriever(
                 retrievers=[dense_retriever, sparse_retriever],
-                weights=[settings.retrieval.dense_weight, settings.retrieval.sparse_weight]
+                weights=[0.3, 0.7]
             )
             logger.info("Initialized Hybrid Search with EnsembleRetriever (RRF)")
         else:
@@ -105,11 +108,11 @@ class LangChainRAGChain:
         
         # 1. Query Rewriting Chain
         contextualize_q_system_prompt = (
-            "Given a chat history and the latest user question "
-            "which might reference context in the chat history, "
-            "formulate a standalone question which can be understood "
-            "without the chat history. Do NOT answer the question, "
-            "just reformulate it if needed and otherwise return it as is."
+            "Bạn là trợ lý giúp chuẩn hóa câu hỏi khách hàng cho hệ thống tìm kiếm (RAG). "
+            "Dựa vào câu hỏi hiện tại và lịch sử trò chuyện (nếu có), hãy tạo ra một câu hỏi độc lập, đầy đủ ngữ cảnh để tìm kiếm dữ liệu. "
+            "Nếu khách hàng dùng tên món ăn tắt hoặc chung chung (ví dụ: 'mì cay', 'lẩu bò', 'tokbokki'), "
+            "hãy giữ nguyên hoặc mở rộng chúng một cách mô tả nhất để công cụ tìm kiếm dễ dàng nhận diện. "
+            "KHÔNG TRẢ LỜI CÂU HỎI, chỉ trả về câu hỏi đã được chuẩn hóa."
         )
         contextualize_q_prompt = ChatPromptTemplate.from_messages([
             ("system", contextualize_q_system_prompt),
@@ -121,17 +124,19 @@ class LangChainRAGChain:
         
         # 2. QA Chain
         system_prompt = (
-            "You are an expert assistant for a spicy noodle restaurant. "
-            "Use the following pieces of retrieved context to answer the question. "
-            "Carefully check all items and their prices. If the user asks for the 'most expensive', 'cheapest', "
-            "or comparison, verify all values before answering. "
-            "If you don't know the answer, just say that you don't know. "
-            "Use formatting like bullet points when listing items. "
+            "Bạn là trợ lý AI chuyên nghiệp của một quán mì cay. "
+            "CHỈ SỬ DỤNG các thông tin được cung cấp trong phần Context dưới đây để trả lời câu hỏi của khách hàng. "
+            "TUYỆT ĐỐI KHÔNG bịa đặt, suy đoán, hoặc sử dụng kiến thức bên ngoài. "
+            "Đặc biệt: KHÔNG ĐƯỢC lấy đánh giá (review/rating) của một sản phẩm cụ thể để gán cho toàn bộ quán. "
+            "Nếu khách hàng sử dụng tên gọi tắt hoặc không đầy đủ (ví dụ: 'lẩu bò' thay vì 'Lẩu Tomyum Bò'), hãy linh hoạt đối chiếu với thông tin trong Context để trả lời nếu rõ ràng đó là cùng một sản phẩm. "
+            "Nếu thông tin khách hàng hỏi thực sự KHÔNG CÓ trong Context, hãy trả lời chính xác: 'Xin lỗi, hiện tại tôi chưa có thông tin về vấn đề này.' và không giải thích thêm. "
+            "Hãy diễn đạt câu trả lời một cách tự nhiên, đa dạng và thân thiện. Tránh lặp lại các mẫu câu 'học thuộc lòng' cứng nhắc. "
+            "Hãy kiểm tra thật kỹ các con số về giá cả, thành phần combo, và đánh giá trước khi xuất ra. "
+            "Sử dụng định dạng danh sách (bullet points) khi cần liệt kê.\n\n"
             "Context: {context}"
         )
         qa_prompt = ChatPromptTemplate.from_messages([
             ("system", system_prompt),
-            MessagesPlaceholder("chat_history"),
             ("human", "{input}"),
         ])
         
@@ -157,7 +162,8 @@ class LangChainRAGChain:
             # Log top scores for debugging
             if sorted_docs:
                 logger.info(f"Top rerank score: {sorted_docs[0].metadata['rerank_score']:.4f}")
-                
+                logger.info(f"Top retrieved doc names: {[doc.metadata.get('product_name') for doc in sorted_docs[:3]]}")
+                 
             return sorted_docs[:settings.retrieval.rerank_top_k]
 
         def limit_hybrid_docs(docs):
@@ -177,8 +183,7 @@ class LangChainRAGChain:
                     | rerank_docs
                     | format_docs
                 ),
-                "input": lambda x: x["input"],
-                "chat_history": lambda x: x["chat_history"]
+                "input": lambda x: x["input"]
             })
             | qa_prompt
             | self.llm
@@ -191,13 +196,12 @@ class LangChainRAGChain:
             chat_history = []
             
         # First, rewrite query if there is history
-        if chat_history:
-            standalone_query = await self.rewrite_chain.ainvoke({
-                "input": query,
-                "chat_history": chat_history
-            })
-        else:
-            standalone_query = query
+        # Always rewrite query to standardize product names
+        standalone_query = await self.rewrite_chain.ainvoke({
+            "input": query,
+            "chat_history": chat_history
+        })
+        logger.info(f"Rewritten query: {standalone_query}")
             
         # Then, run RAG chain
         result = await self.rag_chain.ainvoke({
@@ -212,13 +216,11 @@ class LangChainRAGChain:
         if chat_history is None:
             chat_history = []
             
-        if chat_history:
-            standalone_query = await self.rewrite_chain.ainvoke({
-                "input": query,
-                "chat_history": chat_history
-            })
-        else:
-            standalone_query = query
+        # Always rewrite query to standardize product names
+        standalone_query = await self.rewrite_chain.ainvoke({
+            "input": query,
+            "chat_history": chat_history
+        })
             
         async for chunk in self.rag_chain.astream({
             "input": standalone_query,
