@@ -51,8 +51,9 @@ The RAG service works as an independent AI microservice connected to:
 * backend repository
 * PostgreSQL database
 
-For detailed architecture:
-See `docs/ARCHITECTURE.md`
+For detailed architecture and retrieval workflow:
+* See `docs/ARCHITECTURE.md`
+* See `docs/rag_workflow.md` (Detailed RAG Pipeline)
 
 ---
 

@@ -82,8 +82,22 @@ class IngestionPipeline:
                 self.logger.error("✗ No products loaded")
                 return False
             
-            # Build documents
+            # Build product documents
             self.documents = ProductDocumentBuilder.build_documents_batch(self.products)
+            
+            # Build topping summary document
+            if self.toppings:
+                topping_doc = ProductDocumentBuilder.build_topping_summary_document(self.toppings)
+                if topping_doc:
+                    self.documents.append(topping_doc)
+                    self.logger.info("✓ Added Topping Summary document")
+            
+            # Build menu summary document
+            if self.products:
+                menu_doc = ProductDocumentBuilder.build_menu_summary_document(self.products)
+                if menu_doc:
+                    self.documents.append(menu_doc)
+                    self.logger.info("✓ Added Menu Summary document")
             
             # Get stats
             stats = ProductDocumentBuilder.get_document_stats(self.documents)

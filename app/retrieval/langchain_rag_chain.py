@@ -88,9 +88,9 @@ class LangChainRAGChain:
             # Combine them using EnsembleRetriever for RRF
             self.base_retriever = EnsembleRetriever(
                 retrievers=[dense_retriever, sparse_retriever],
-                weights=[0.3, 0.7]
+                weights=[settings.retrieval.dense_weight, settings.retrieval.sparse_weight]
             )
-            logger.info("Initialized Hybrid Search with EnsembleRetriever (RRF)")
+            logger.info(f"Initialized Hybrid Search with weights Dense={settings.retrieval.dense_weight}, Sparse={settings.retrieval.sparse_weight}")
         else:
             self.base_retriever = dense_retriever
             logger.warning("BM25 docs not found, falling back to dense retriever only.")
@@ -102,17 +102,17 @@ class LangChainRAGChain:
             device=settings.reranker.device
         )
         
-        # Setup Reranker (Manual LLM Reranking logic or Compressor)
-        # Since LLMChainExtractor might be in langchain.chains, we'll do a simple prompt-based rerank if needed
-        # For now, we'll just use the base retriever or a simple LCEL filter
-        
         # 1. Query Rewriting Chain
         contextualize_q_system_prompt = (
-            "Bạn là trợ lý giúp chuẩn hóa câu hỏi khách hàng cho hệ thống tìm kiếm (RAG). "
-            "Dựa vào câu hỏi hiện tại và lịch sử trò chuyện (nếu có), hãy tạo ra một câu hỏi độc lập, đầy đủ ngữ cảnh để tìm kiếm dữ liệu. "
-            "Nếu khách hàng dùng tên món ăn tắt hoặc chung chung (ví dụ: 'mì cay', 'lẩu bò', 'tokbokki'), "
-            "hãy giữ nguyên hoặc mở rộng chúng một cách mô tả nhất để công cụ tìm kiếm dễ dàng nhận diện. "
-            "KHÔNG TRẢ LỜI CÂU HỎI, chỉ trả về câu hỏi đã được chuẩn hóa."
+            "Bạn là trợ lý tối ưu hóa câu lệnh tìm kiếm cho hệ thống RAG. "
+            "NHIỆM VỤ: Chuyển đổi câu hỏi của người dùng thành 1 câu TRUY VẤN TÌM KIẾM duy nhất. "
+            "QUY TẮC CỰC KỲ QUAN TRỌNG: "
+            "1. CHỈ sử dụng thông tin từ câu hỏi hiện tại và lịch sử trò chuyện. "
+            "2. TUYỆT ĐỐI KHÔNG được thêm bất kỳ tên món ăn, thành phần hoặc thông tin nào KHÔNG có trong đầu vào. "
+            "3. Nếu người dùng hỏi 'có những loại nào', 'tất cả', 'bao nhiêu loại', hãy GIỮ LẠI các từ khóa này để tìm kiếm tài liệu tổng hợp. "
+            "4. KHÔNG TRẢ LỜI CÂU HỎI. "
+            "5. Kết quả chỉ chứa duy nhất câu truy vấn. "
+            "Ví dụ đúng: 'quán có những loại gà nào' -> 'tất cả các loại gà rán'."
         )
         contextualize_q_prompt = ChatPromptTemplate.from_messages([
             ("system", contextualize_q_system_prompt),
@@ -124,27 +124,39 @@ class LangChainRAGChain:
         
         # 2. QA Chain
         system_prompt = (
-            "Bạn là trợ lý AI chuyên nghiệp của một quán mì cay. "
-            "CHỈ SỬ DỤNG các thông tin được cung cấp trong phần Context dưới đây để trả lời câu hỏi của khách hàng. "
-            "TUYỆT ĐỐI KHÔNG bịa đặt, suy đoán, hoặc sử dụng kiến thức bên ngoài. "
-            "Đặc biệt: KHÔNG ĐƯỢC lấy đánh giá (review/rating) của một sản phẩm cụ thể để gán cho toàn bộ quán. "
-            "Nếu khách hàng sử dụng tên gọi tắt hoặc không đầy đủ (ví dụ: 'lẩu bò' thay vì 'Lẩu Tomyum Bò'), hãy linh hoạt đối chiếu với thông tin trong Context để trả lời nếu rõ ràng đó là cùng một sản phẩm. "
-            "Nếu thông tin khách hàng hỏi thực sự KHÔNG CÓ trong Context, hãy trả lời chính xác: 'Xin lỗi, hiện tại tôi chưa có thông tin về vấn đề này.' và không giải thích thêm. "
-            "Hãy diễn đạt câu trả lời một cách tự nhiên, đa dạng và thân thiện. Tránh lặp lại các mẫu câu 'học thuộc lòng' cứng nhắc. "
-            "Hãy kiểm tra thật kỹ các con số về giá cả, thành phần combo, và đánh giá trước khi xuất ra. "
-            "Sử dụng định dạng danh sách (bullet points) khi cần liệt kê.\n\n"
-            "Context: {context}"
+            "Bạn là trợ lý ảo chuyên nghiệp và cẩn thận của quán mì cay. "
+            "NHIỆM VỤ: Trả lời câu hỏi khách hàng dựa TRỰC TIẾP và DUY NHẤT vào Context được cung cấp. "
+            
+            "QUY TẮC PHẢI TUÂN THỦ (ĐỂ TRÁNH LỖI ẢO GIÁC): "
+            "1. Trước khi trả lời về số lượng món ăn (ví dụ: 'có mấy loại', 'tất cả'), hãy THỰC HIỆN CÁC BƯỚC: "
+            "   a. Quét toàn bộ Context để tìm tất cả các món thuộc nhóm yêu cầu. "
+            "   b. ĐẾM chính xác số lượng món tìm thấy. "
+            "   c. ĐỐI CHIẾU tên từng món để đảm bảo không bỏ sót (đặc biệt là các món Gà Rán, Mì Cay). "
+            "2. Luôn trình bày danh sách dưới dạng ĐÁNH SỐ THỨ TỰ (1, 2, 3...) để đảm bảo tính minh bạch. "
+            "3. Nếu thông tin trong Context khác với những gì bạn đã trả lời trước đó, hãy ƯU TIÊN Context mới nhất và đính chính lại một cách lịch sự. "
+            "4. TUYỆT ĐỐI KHÔNG được trả lời 'chỉ có 1 loại' nếu trong Context xuất hiện từ 2 món trở lên thuộc cùng nhóm đó. "
+            "5. Luôn cung cấp giá tiền đi kèm với tên món ăn.\n\n"
+            "Context:\n{context}"
         )
         qa_prompt = ChatPromptTemplate.from_messages([
             ("system", system_prompt),
+            MessagesPlaceholder("chat_history"),
             ("human", "{input}"),
         ])
         
         def format_docs(docs):
-            return "\n\n".join(doc.page_content for doc in docs)
+            if not docs:
+                return "Không tìm thấy thông tin phù hợp trong cơ sở dữ liệu."
+            
+            logger.info(f"Passing {len(docs)} documents to LLM for generation.")
+            formatted = []
+            for i, doc in enumerate(docs):
+                product_name = doc.metadata.get("product_name", "Món ăn")
+                formatted.append(f"--- [Sản phẩm: {product_name}] ---\n{doc.page_content}")
+            return "\n\n".join(formatted)
             
         def rerank_docs(inputs):
-            query = inputs["query"]
+            query = inputs["query"].lower()
             docs = inputs["docs"]
             if not docs:
                 return []
@@ -153,24 +165,30 @@ class LangChainRAGChain:
             pairs = [[query, doc.page_content] for doc in docs]
             scores = self.reranker.predict(pairs)
             
+            # Global query keywords
+            is_global_query = any(kw in query for kw in ["tất cả", "mấy loại", "danh sách", "menu", "tổng cộng", "bao gồm"])
+            
             # Add scores to metadata and sort
             for doc, score in zip(docs, scores):
-                doc.metadata["rerank_score"] = float(score)
+                final_score = float(score)
+                # Boost summary documents for global queries
+                if is_global_query and doc.metadata.get("is_summary"):
+                    final_score += 2.0 # Significant boost for summary docs
+                
+                doc.metadata["rerank_score"] = final_score
             
             sorted_docs = sorted(docs, key=lambda x: x.metadata["rerank_score"], reverse=True)
             
             # Log top scores for debugging
             if sorted_docs:
-                logger.info(f"Top rerank score: {sorted_docs[0].metadata['rerank_score']:.4f}")
-                logger.info(f"Top retrieved doc names: {[doc.metadata.get('product_name') for doc in sorted_docs[:3]]}")
+                logger.info(f"Rerank Score (Top 1): {sorted_docs[0].metadata['rerank_score']:.4f} for {sorted_docs[0].metadata.get('product_name')} (Global: {is_global_query})")
                  
             return sorted_docs[:settings.retrieval.rerank_top_k]
 
         def limit_hybrid_docs(docs):
             if not docs:
                 return []
-            # Log hybrid top scores for debugging
-            logger.info(f"Retrieved {len(docs)} documents after hybrid fusion. Limiting to {settings.retrieval.hybrid_top_k}.")
+            logger.info(f"Hybrid retrieval returned {len(docs)} docs.")
             return docs[:settings.retrieval.hybrid_top_k]
 
         self.rag_chain = (
@@ -183,7 +201,8 @@ class LangChainRAGChain:
                     | rerank_docs
                     | format_docs
                 ),
-                "input": lambda x: x["input"]
+                "input": lambda x: x["input"],
+                "chat_history": lambda x: x.get("chat_history", [])
             })
             | qa_prompt
             | self.llm
@@ -195,15 +214,19 @@ class LangChainRAGChain:
         if chat_history is None:
             chat_history = []
             
-        # First, rewrite query if there is history
-        # Always rewrite query to standardize product names
+        # Standardize query
         standalone_query = await self.rewrite_chain.ainvoke({
             "input": query,
             "chat_history": chat_history
         })
-        logger.info(f"Rewritten query: {standalone_query}")
+        # Basic cleanup in case LLM adds quotes or "Search query:" prefix
+        standalone_query = standalone_query.strip().replace('"', '').replace("'", "")
+        if ":" in standalone_query and len(standalone_query.split(":")[0]) < 20:
+             standalone_query = standalone_query.split(":")[-1].strip()
+             
+        logger.info(f"Standalone search query: '{standalone_query}' (Original: '{query}')")
             
-        # Then, run RAG chain
+        # Run RAG chain
         result = await self.rag_chain.ainvoke({
             "input": standalone_query,
             "chat_history": chat_history

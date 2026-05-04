@@ -38,7 +38,7 @@ async def read_root():
     """Serve the chat interface."""
     index_file = os.path.join(static_path, "index.html")
     if os.path.exists(index_file):
-        with open(index_file, "r", encoding="utf-8") as f:
+        with open(index_file, "r", encoding="utf-8") as f: 
             return HTMLResponse(content=f.read())
     return HTMLResponse(content="<h1>Chatbot UI coming soon...</h1>")
 

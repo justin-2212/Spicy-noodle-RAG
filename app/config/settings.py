@@ -53,7 +53,7 @@ class LLMSettings(BaseSettings):
     
     model_config = ConfigDict(env_prefix="LLM_", env_file=".env", extra="ignore")
     
-    provider: str = "groq"  # "gemini" or "groq"
+    provider: str = "gemini"  # "gemini" or "groq"
     use_fallback: bool = True
     
     gemini_api_key: Optional[str] = None
@@ -71,12 +71,12 @@ class RetrievalSettings(BaseSettings):
     
     model_config = ConfigDict(env_prefix="RETRIEVAL_")
     
-    dense_top_k: int = 20
-    sparse_top_k: int = 20
-    hybrid_top_k: int = 10
-    rerank_top_k: int = 5
-    dense_weight: float = 0.6
-    sparse_weight: float = 0.4
+    dense_top_k: int = 30
+    sparse_top_k: int = 30
+    hybrid_top_k: int = 20
+    rerank_top_k: int = 10
+    dense_weight: float = 0.5
+    sparse_weight: float = 0.5
 
 
 class Settings(BaseSettings):

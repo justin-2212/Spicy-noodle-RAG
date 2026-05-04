@@ -55,23 +55,38 @@ class QdrantIndexer:
                 logger.info("Chunking documents...")
                 from langchain_text_splitters import RecursiveCharacterTextSplitter
                 text_splitter = RecursiveCharacterTextSplitter(
-                    chunk_size=500,
-                    chunk_overlap=50,
+                    chunk_size=1000,
+                    chunk_overlap=100,
                     separators=["\n\n", "\n", ". ", " ", ""]
                 )
                 
                 chunked_docs = []
                 for doc in documents:
+                    metadata = doc.get("metadata", {})
+                    # SKIP chunking for summary documents to keep full lists together
+                    if metadata.get("is_summary"):
+                        chunked_docs.append({
+                            "id": doc.get("id"),
+                            "text": doc["text"],
+                            "metadata": {
+                                **metadata,
+                                "chunk_id": 0,
+                                "original_id": doc.get("id")
+                            }
+                        })
+                        continue
+
+                    # Normal chunking for regular products
                     chunks = text_splitter.split_text(doc["text"])
                     for i, chunk in enumerate(chunks):
-                        product_name = doc.get("metadata", {}).get("product_name", "")
+                        product_name = metadata.get("product_name", "")
                         chunk_text = f"Món: {product_name}\n{chunk}" if product_name else chunk
                         
                         chunked_docs.append({
                             "id": doc.get("id"),
                             "text": chunk_text,
                             "metadata": {
-                                **doc.get("metadata", {}),
+                                **metadata,
                                 "chunk_id": i,
                                 "original_id": doc.get("id")
                             }
