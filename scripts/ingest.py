@@ -14,23 +14,28 @@ from app.utils.logger import logger
 
 async def main():
     """Main ingestion entry point."""
-    logger.info("Starting ingestion script...")
+    logger.info("--- Starting Ingestion Process ---")
     
     try:
         await db_pool.init()
 
         async for session in db_pool.get_session():
+            logger.info("Running ingestion pipeline...")
             documents = await run_ingestion(session)
-            logger.info(
-                f"Ingestion completed successfully with {len(documents) if documents else 0} documents"
-            )
+            count = len(documents) if documents else 0
+            logger.info(f"SUCCESS: Ingestion completed with {count} documents.")
             break
+        
+        sys.exit(0)
 
     except Exception as e:
-        logger.error(f"Ingestion failed: {str(e)}")
-        raise
+        logger.error(f"FATAL ERROR during ingestion: {str(e)}")
+        logger.exception(e)
+        sys.exit(1)
     finally:
         await db_pool.close()
+        logger.info("--- Ingestion Process Finished ---")
+
 
 
 if __name__ == "__main__":

@@ -1,16 +1,6 @@
 """Prompt templates."""
 
-SYSTEM_PROMPT = """You are a helpful spicy noodle (mì cay) recommendation assistant for a spicy noodle restaurant.
-You help customers find spicy noodle dishes that match their preferences, dietary requirements, and budget.
-Always be friendly, professional, and provide personalized recommendations based on the available menu items.
-
-When providing recommendations:
-1. Consider the user's dietary preferences and restrictions
-2. Suggest spicy noodle items within their budget
-3. Explain why each recommendation is suitable
-4. Ask follow-up questions if needed for better recommendations
-5. Be specific about prices and availability
-"""
+from app.utils.config_loader import load_system_prompt
 
 RAG_PROMPT_TEMPLATE = """Based on the following spicy noodle menu items from our restaurant, provide personalized food recommendations:
 
@@ -68,4 +58,4 @@ class PromptBuilder:
     @staticmethod
     def build_system_prompt() -> str:
         """Get system prompt."""
-        return SYSTEM_PROMPT
+        return load_system_prompt()

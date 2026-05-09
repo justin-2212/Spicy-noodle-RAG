@@ -79,6 +79,7 @@ class LangChainRAGChain:
             from langchain_community.retrievers import BM25Retriever
             # In this environment, EnsembleRetriever is in langchain_classic.retrievers
             try:
+                # pyrefly: ignore [missing-import]
                 from langchain.retrievers import EnsembleRetriever
             except ImportError:
                 from langchain_classic.retrievers import EnsembleRetriever

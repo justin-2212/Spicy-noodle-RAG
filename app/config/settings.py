@@ -1,14 +1,13 @@
 """Application settings and configuration."""
 
 from typing import Optional
-from pydantic import ConfigDict
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class DatabaseSettings(BaseSettings):
     """PostgreSQL database configuration."""
     
-    model_config = ConfigDict(env_prefix="DB_", env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_prefix="DB_", env_file=".env", extra="ignore")
     
     url: str = "postgresql://postgres:justinthang2005@localhost:5432/mi-cay"
     echo: bool = False
@@ -18,7 +17,7 @@ class DatabaseSettings(BaseSettings):
 class VectorStoreSettings(BaseSettings):
     """Qdrant vector store configuration."""
     
-    model_config = ConfigDict(env_prefix="QDRANT_", env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_prefix="QDRANT_", env_file=".env", extra="ignore")
     
     host: str = "localhost"
     port: int = 6333
@@ -29,7 +28,7 @@ class VectorStoreSettings(BaseSettings):
 class EmbeddingSettings(BaseSettings):
     """Embedding model configuration."""
     
-    model_config = ConfigDict(env_prefix="EMBEDDING_", env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_prefix="EMBEDDING_", env_file=".env", extra="ignore")
     
     model_name: str = "BAAI/bge-m3"
     device: str = "cpu"  # or "cuda"
@@ -40,7 +39,7 @@ class EmbeddingSettings(BaseSettings):
 class RerankerSettings(BaseSettings):
     """Reranker model configuration."""
     
-    model_config = ConfigDict(env_prefix="RERANKER_")
+    model_config = SettingsConfigDict(env_prefix="RERANKER_")
     
     model_name: str = "BAAI/bge-reranker-v2-m3"
     device: str = "cpu"
@@ -51,9 +50,9 @@ class RerankerSettings(BaseSettings):
 class LLMSettings(BaseSettings):
     """Language model configuration."""
     
-    model_config = ConfigDict(env_prefix="LLM_", env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_prefix="LLM_", env_file=".env", extra="ignore")
     
-    provider: str = "gemini"  # "gemini" or "groq"
+    provider: str = "groq"  # "gemini" or "groq"
     use_fallback: bool = True
     
     gemini_api_key: Optional[str] = None
@@ -69,7 +68,7 @@ class LLMSettings(BaseSettings):
 class RetrievalSettings(BaseSettings):
     """Retrieval configuration."""
     
-    model_config = ConfigDict(env_prefix="RETRIEVAL_")
+    model_config = SettingsConfigDict(env_prefix="RETRIEVAL_")
     
     dense_top_k: int = 30
     sparse_top_k: int = 30
@@ -105,7 +104,7 @@ class Settings(BaseSettings):
     llm: LLMSettings = LLMSettings()
     retrieval: RetrievalSettings = RetrievalSettings()
     
-    model_config = ConfigDict(
+    model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
         extra="ignore"
